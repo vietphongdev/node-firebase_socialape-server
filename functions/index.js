@@ -114,20 +114,20 @@ exports.createNotificationOnComment = functions.firestore.document('comments/{id
 // User change image avatar : Confuse
 exports.onUserImageChange = functions.firestore.document('/users/{userId}')
   .onUpdate(userDoc => {
-    console.log(userDoc.before.data());
-    console.log(userDoc.after.data());
+    console.log('before >>>', userDoc.before.data());
+    console.log('after >>>', userDoc.after.data());
     if (userDoc.before.data().imageUrl !== userDoc.after.data().imageUrl) {
       console.log('image has changed');
       const batch = admin.firestore().batch();
       return admin
         .firestore()
         .collection('screams')
-        .where('userHandle', '==', userDoc.before.data().handle)
+        .where('authorName', '==', userDoc.before.data().handle)
         .get()
-        .then(data => {
+        .then(data => { 
           data.docs.forEach(doc => {
             const scream = admin.firestore().doc(`/screams/${doc.id}`);
-            batch.update(scream, { userImage: userDoc.after.data().imageUrl });
+            batch.update(scream, { authorImage: userDoc.after.data().imageUrl });
           });
           return batch.commit();
         });

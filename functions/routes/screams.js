@@ -5,13 +5,28 @@ const successMsg = require('../constants/success-messages');
 
 // Create Scream : Clear
 const createScream = (req, res) => {
-	if(isEmpty(req.body.body)){
-		return res.status(400).json({body: `Body ${errMsg.empty}`});
-  }  
+  const { category, title, body } = req.body;
+  let errors = {};
+  if (isEmpty(category)) {
+		errors.category = `category ${errMsg.empty}`;
+		return res.status(400).json(errors);
+	};
+  if (isEmpty(title)) {
+		errors.title = `title ${errMsg.empty}`;
+		return res.status(400).json(errors);
+	};
+  if (isEmpty(body)) {
+		errors.body = `body ${errMsg.empty}`;
+		return res.status(400).json(errors);
+	};
+
 	let newScream = {
-		body: req.body.body,
-    userHandle: req.user.handle,
-    userImage: req.user.imageUrl,
+    category,
+    title,
+		body,
+    authorId: req.user.userId,
+    authorName: req.user.handle,
+    authorImage: req.user.imageUrl,
     createdAt: new Date().toISOString(),
     likeCount: 0,
     commentCount: 0
@@ -45,12 +60,15 @@ const getScreams = (req, res) => {
       data.docs.forEach(doc => {
         screams.push({
 					screamId: doc.id,
+					category: doc.data().category,
+					title: doc.data().title,
 					body: doc.data().body,
-					userHandle: doc.data().userHandle,
+					authorId: doc.data().authorId,
+					authorName: doc.data().authorName,
+					authorImage: doc.data().authorImage,
           createdAt: doc.data().createdAt,
           commentCount: doc.data().commentCount,
           likeCount: doc.data().likeCount,
-          userImage: doc.data().userImage
 				});
       });
       return res.json(screams);
@@ -103,7 +121,7 @@ const deleteScream = (req, res) => {
       if (!doc.exists) {
         return res.status(404).json({ error: errMsg.notFoundScream });
       }
-      if (doc.data().userHandle !== req.user.handle) {
+      if (doc.data().authorName !== req.user.handle) {
         return res.status(403).json({ error: errMsg.unauthorize });
       } else {
         return screamDocument.delete();
@@ -127,7 +145,7 @@ const likeScream = (req, res) => {
   const likeDocument = admin
     .firestore()
     .collection('likes')
-    .where('userHandle', '==', req.user.handle)
+    .where('authorName', '==', req.user.handle)
     .where('screamId', '==', req.params.screamId)
     .limit(1); 
 

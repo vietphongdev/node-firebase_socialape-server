@@ -23,6 +23,7 @@ const authenticate = (req, res, next) => {
         .get();
     })
     .then(data => {
+      req.user.userId = data.docs[0].data().userId;
       req.user.handle = data.docs[0].data().handle;
       req.user.imageUrl = data.docs[0].data().imageUrl;
       return next();
