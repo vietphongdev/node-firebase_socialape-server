@@ -6,7 +6,7 @@ const authenticate = (req, res, next) => {
   let idToken;
   if(req.headers.authorization && req.headers.authorization.startsWith('Bearer ')){
     idToken = req.headers.authorization.split('Bearer ')[1];
-  }else{
+  }else{    
     return res.status(403).json({ error: errMsg.unauthorize });
   }
 
@@ -24,12 +24,12 @@ const authenticate = (req, res, next) => {
     })
     .then(data => {
       req.user.userId = data.docs[0].data().userId;
-      req.user.handle = data.docs[0].data().handle;
-      req.user.imageUrl = data.docs[0].data().imageUrl;
+      req.user.userName = data.docs[0].data().userName;
+      req.user.userImage = data.docs[0].data().userImage;
       return next();
     })
     .catch(err => {
-      return res.status(403).json(err);
+      return res.status(403).json({ error: err.code })
     })
 }
 

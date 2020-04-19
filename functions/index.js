@@ -4,21 +4,21 @@ const authenticate = require('./middleware/auth-middleware');
 const admin = require('./admin');
 
 const {
-  getScreams, 
-  createScream,
-  getScream,
-  deleteScream,
-  likeScream,
-  unlikeScream,
+  getPosts, 
+  createPost,
+  getPost,
+  deletePost,
+  likePost,
+  unlikePost,
   addComment,
-} = require('./routes/screams');
+} = require('./routes/posts');
 const {
   signup, 
   login, 
   uploadAvatar, 
-  updateProfile,
-  getMyProfile,
-  getUserProfile,
+  updateUser,
+  getUserOwner,
+  getUserGuest,
   markNotificationsRead
 } = require('./routes/users');
 
@@ -27,21 +27,21 @@ const app = express();
 // User route
 app.post('/signup', signup);
 app.post('/login', login);
-app.post('/user', authenticate, updateProfile);
+app.post('/user', authenticate, updateUser);
 app.post('/user/avatar', authenticate, uploadAvatar);
-app.get('/user', authenticate, getMyProfile);
-app.get('/user/:handle', getUserProfile);
+app.get('/user', authenticate, getUserOwner);
+app.get('/user/:userId', getUserGuest);
 app.post('/notifications', authenticate, markNotificationsRead);
 
 
-// Screams route
-app.post('/scream', authenticate, createScream);
-app.get('/screams', getScreams);
-app.get('/scream/:screamId', getScream);
-app.delete('/scream/:screamId', authenticate, deleteScream);
-app.get('/scream/:screamId/like', authenticate, likeScream);
-app.get('/scream/:screamId/unlike', authenticate, unlikeScream);
-app.post('/scream/:screamId/comment', authenticate, addComment);
+// Post route
+app.post('/post', authenticate, createPost);
+app.get('/posts', getPosts);
+app.get('/post/:postId', getPost);
+app.get('/post/:postId/like', authenticate, likePost);
+app.get('/post/:postId/unlike', authenticate, unlikePost);
+app.post('/post/:postId/comment', authenticate, addComment);
+app.delete('/post/:postId', authenticate, deletePost);
 
 
 exports.api = functions.https.onRequest(app);
@@ -49,18 +49,18 @@ exports.api = functions.https.onRequest(app);
 // Create Notification When Liked : Clear
 exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
   .onCreate(likeDoc => {
-    const screamRef = admin.firestore().doc(`/screams/${likeDoc.data().screamId}`);
-    return screamRef
+    const postRef = admin.firestore().doc(`/posts/${likeDoc.data().postId}`);
+    return postRef
       .get()
-      .then(screamDoc => {
+      .then(postDoc => {
         if(
-          screamDoc.exists && 
-          screamDoc.data().userHandle !== likeDoc.data().userHandle
+          postDoc.exists && 
+          postDoc.data().authorId !== likeDoc.data().userHandle
         ){
           return admin.firestore().doc(`/notifications/${likeDoc.id}`).set({
-            screamId: screamDoc.id,
+            postId: postDoc.id,
             createdAt: new Date().toISOString(),
-            recipient: screamDoc.data().userHandle,
+            recipient: postDoc.data().authorId,
             sender: likeDoc.data().userHandle,
             type: 'like',
             read: false
@@ -72,7 +72,7 @@ exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
       })
   });
 
-// Create Notification When Liked : Clear
+// Create Notification When Unliked : Clear
 exports.deleteNotificationOnUnlike = functions.firestore.document('likes/{id}')
   .onDelete(likeDoc => {
     const notificationRef = admin.firestore().doc(`/notifications/${likeDoc.id}`);
@@ -87,18 +87,18 @@ exports.deleteNotificationOnUnlike = functions.firestore.document('likes/{id}')
 // Create Notification When New Comment : Clear
 exports.createNotificationOnComment = functions.firestore.document('comments/{id}')
   .onCreate(commentDoc => {
-    const screamRef = admin.firestore().doc(`/screams/${commentDoc.data().screamId}`);
-    return screamRef
+    const postRef = admin.firestore().doc(`/posts/${commentDoc.data().postId}`);
+    return postRef
       .get()
-      .then(screamDoc => {
+      .then(postDoc => {
         if(
-            screamDoc.exists &&
-            screamDoc.data().userHandle !== likeDoc.data().userHandle
+          postDoc.exists &&
+          postDoc.data().authorId !== commentDoc.data().userHandle
           ){
           return admin.firestore().doc(`/notifications/${commentDoc.id}`).set({
-            screamId: screamDoc.id,
+            postId: postDoc.id,
             createdAt: new Date().toISOString(),
-            recipient: screamDoc.data().userHandle,
+            recipient: postDoc.data().authorId,
             sender: commentDoc.data().userHandle,
             type: 'comment',
             read: false
@@ -116,18 +116,18 @@ exports.onUserImageChange = functions.firestore.document('/users/{userId}')
   .onUpdate(userDoc => {
     console.log('before >>>', userDoc.before.data());
     console.log('after >>>', userDoc.after.data());
-    if (userDoc.before.data().imageUrl !== userDoc.after.data().imageUrl) {
+    if (userDoc.before.data().userImage !== userDoc.after.data().userImage) {
       console.log('image has changed');
       const batch = admin.firestore().batch();
       return admin
         .firestore()
-        .collection('screams')
-        .where('authorName', '==', userDoc.before.data().handle)
+        .collection('posts')
+        .where('authorId', '==', userDoc.before.data().userId)
         .get()
         .then(data => { 
           data.docs.forEach(doc => {
-            const scream = admin.firestore().doc(`/screams/${doc.id}`);
-            batch.update(scream, { authorImage: userDoc.after.data().imageUrl });
+            const post = admin.firestore().doc(`/posts/${doc.id}`);
+            batch.update(post, { authorImage: userDoc.after.data().userImage });
           });
           return batch.commit();
         });
@@ -136,15 +136,15 @@ exports.onUserImageChange = functions.firestore.document('/users/{userId}')
     }
   });
 
-  // Delete Scream : Confuse
-exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
+  // Delete Post : Confuse
+exports.onPostDelete = functions.firestore.document('/posts/{postId}')
   .onDelete((snapshot, context) => {
-    const screamId = context.params.screamId;
+    const postId = context.params.postId;
     const batch = admin.firestore().batch();
     return admin
       .firestore()
       .collection('comments')
-      .where('screamId', '==', screamId)
+      .where('postId', '==', postId)
       .get()
       .then(data => {
         data.docs.forEach(doc => {
@@ -153,7 +153,7 @@ exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
         return admin
           .firestore()
           .collection('likes')
-          .where('screamId', '==', screamId)
+          .where('postId', '==', postId)
           .get();
       })
       .then(data => {
@@ -163,7 +163,7 @@ exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
         return admin
           .firestore()
           .collection('notifications')
-          .where('screamId', '==', screamId)
+          .where('postId', '==', postId)
           .get();
       })
       .then(data => {

@@ -1,11 +1,11 @@
 const successMsg = {
 
   uploadImage: 'Image uploaded successfully',
-  updateProfile: 'Details added successfully',
+  updateUser: 'Details added successfully',
 
-  // Scream
-  createScream: 'Scream created successfully',
-  deleteScreamSuccess: 'Scream deleted successfully'
+  // Post
+  createPostSuccess: 'Post created successfully',
+  deletePostSuccess: 'Post deleted successfully'
 }
 
 module.exports = successMsg;

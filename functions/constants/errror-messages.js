@@ -15,9 +15,10 @@ const errMsg = {
   // User
   notFoundUser : 'User not found',
   
-  // Scream
-  notFoundScream: 'Scream not found',
-  screamAlreadyLiked: 'Scream already liked',
+  // Posts
+  notFoundPost: 'Post not found',
+  postAlreadyLiked: 'Post already liked',
+  postNotLikeYet : 'Post has not been liked yet! '
 }
 
 module.exports = errMsg;
