@@ -75,7 +75,7 @@ const signup = (req, res) => {
 
 // Log-in: Clear
 const login = (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body;  
   let errors = {};
 
   if (!isValidEmail(email)) {
@@ -83,7 +83,7 @@ const login = (req, res) => {
   }
   if (!isValidPassword(password)) {
     errors.password = errMsg.invalidPassword;
-  }
+  };
 
   if (Object.keys(errors).length) {
     return res.status(400).json(errors);
@@ -169,6 +169,7 @@ const uploadAvatar = (req, res) => {
 // Get user - owner : Clear
 const getUserOwner = (req, res) => {
   let userData = {};
+
   admin
     .firestore()
     .doc(`/users/${req.user.userId}`)
@@ -176,6 +177,8 @@ const getUserOwner = (req, res) => {
     .then((doc) => {
       if (doc.exists) {
         userData.credentials = doc.data();
+
+        // Get like
         return admin
           .firestore()
           .collection('likes')
@@ -188,6 +191,8 @@ const getUserOwner = (req, res) => {
       data.docs.forEach((doc) => {
         userData.likes.push(doc.data());
       });
+
+      // Get notifications
       return admin
         .firestore()
         .collection('notifications')
@@ -196,7 +201,7 @@ const getUserOwner = (req, res) => {
         .limit(10)
         .get();
     })
-    .then((data) => {
+    .then(data => {
       userData.notifications = [];
       data.forEach((doc) => {
         userData.notifications.push({
@@ -207,6 +212,29 @@ const getUserOwner = (req, res) => {
           type: doc.data().type,
           read: doc.data().read,
           notificationId: doc.id,
+        });
+      });
+
+      // Get posts
+      return admin
+        .firestore()
+        .collection('posts')
+        .where('authorId', '==', req.user.userId)
+        .orderBy('createdAt', 'desc')
+        .get();
+    })
+    .then(data => {
+      userData.posts = [];
+      data.docs.forEach((doc) => {
+        userData.posts.push({
+          body: doc.data().body,
+          createdAt: doc.data().createdAt,
+          authorId: doc.data().authorId,
+          authorName: doc.data().authorName,
+          authorImage: doc.data().authorImage,
+          likeCount: doc.data().likeCount,
+          commentCount: doc.data().commentCount,
+          postId: doc.id,
         });
       });
       return res.json(userData);
@@ -226,7 +254,7 @@ const getUserGuest = (req, res) => {
     .get()
     .then((doc) => {
       if (doc.exists) {
-        userData.user = doc.data();
+        userData.credentials = doc.data();
         return admin
           .firestore()
           .collection('posts')
@@ -239,12 +267,13 @@ const getUserGuest = (req, res) => {
     })
     .then((data) => {
       userData.posts = [];
-      data.docs.forEach((doc) => {
+      data.docs.forEach(doc => {       
         userData.posts.push({
           body: doc.data().body,
           createdAt: doc.data().createdAt,
-          // userHandle: doc.data().userHandle,
-          // userImage: doc.data().userImage,
+          authorId: doc.data().authorId,
+          authorName: doc.data().authorName,
+          authorImage: doc.data().authorImage,
           likeCount: doc.data().likeCount,
           commentCount: doc.data().commentCount,
           postId: doc.id,

@@ -5,25 +5,30 @@ const successMsg = require('../constants/success-messages');
 
 // Create Post : Clear
 const createPost = (req, res) => {
-  const { category, title, body } = req.body;
+  const { category, title, body, tags } = req.body;  
   let errors = {};
-  if (isEmpty(category)) {
-		errors.category = `category ${errMsg.empty}`;
-	};
   if (isEmpty(title)) {
 		errors.title = `title ${errMsg.empty}`;
 	};
   if (isEmpty(body)) {
 		errors.body = `body ${errMsg.empty}`;
   };
+  if (isEmpty(category)) {
+		errors.tags = `category ${errMsg.empty}`;
+	};
+  if (!tags.length) {
+		errors.tags = `tags ${errMsg.empty}`;
+	};
+
   if (Object.keys(errors).length) {
     return res.status(400).json(errors);
   }
 
 	let newPost = {
-    category,
     title,
 		body,
+    tags,
+    category,
     authorId: req.user.userId,
     authorName: req.user.userName,
     authorImage: req.user.userImage,
@@ -42,7 +47,7 @@ const createPost = (req, res) => {
       }
 			res.json(newPost);
 		})
-		.catch(err => {
+		.catch(err => {      
 			res.status(500).json({error: err.code});
 		})
 };
@@ -59,6 +64,7 @@ const getPosts = (req, res) => {
       data.docs.forEach(doc => {
         posts.push({
 					postId: doc.id,
+					tags: doc.data().tags,
 					category: doc.data().category,
 					title: doc.data().title,
 					body: doc.data().body,
@@ -216,8 +222,11 @@ const addComment = (req, res) => {
     body: req.body.body,
     createdAt: new Date().toISOString(),
     postId: req.params.postId,
-    userHandle: req.user.userId,
-    userImage: req.user.userImage
+    userHandle: {
+      userId: req.user.userId,
+      userName: req.user.userName,
+      userImage: req.user.userImage,
+    }
   };
   admin
     .firestore()
